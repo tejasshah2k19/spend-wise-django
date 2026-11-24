@@ -1,0 +1,1281 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>SpendWise - Smart Multi-Bank Expense Tracker & Financial Analytics</title>
+    <!-- Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Custom Application CSS -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=1.1">
+</head>
+<body>
+    <div id="csrfTokenContainer" style="display:none;">{% csrf_token %}</div>
+    <script id="serverData" type="application/json">
+    {
+        "isAuthenticated": {{ is_authenticated|yesno:"true,false" }},
+        "user": {{ user_data|safe }},
+        "accounts": {{ accounts_data|safe }},
+        "expenses": {{ expenses_data|safe }}
+    }
+    </script>
+
+    <!-- ========================================== -->
+    <!-- NAVIGATION BAR -->
+    <!-- ========================================== -->
+    <nav id="appNavigation" class="navbar navbar-expand-lg navbar-custom sticky-top d-none">
+        <div class="container-fluid px-3 px-lg-4">
+            <!-- Brand -->
+            <a class="navbar-brand d-flex align-items-center gap-2" href="#" data-nav-view="dashboard">
+                <span class="brand-icon">
+                    <i class="bi bi-wallet2"></i>
+                </span>
+                <span class="fw-bold tracking-tight text-primary fs-5">Spend<span class="text-body">Wise</span></span>
+            </a>
+
+            <!-- Mobile Hamburger -->
+            <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- Nav Links & Controls -->
+            <div class="collapse navbar-collapse" id="navbarContent">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-3 gap-1">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" data-nav-view="dashboard" data-view="dashboard">
+                            <i class="bi bi-grid-1x2-fill me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-nav-view="accounts" data-view="accounts">
+                            <i class="bi bi-bank2 me-1"></i> Bank Accounts
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-nav-view="expenses" data-view="expenses">
+                            <i class="bi bi-receipt-cutoff me-1"></i> Expenses
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-nav-view="analytics" data-view="analytics">
+                            <i class="bi bi-bar-chart-line-fill me-1"></i> Analytics & Insights
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- Right Actions -->
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-3 mt-lg-0">
+                    <!-- Global Bank Account Selector (Filter across app) -->
+                    <div class="d-flex align-items-center me-1">
+                        <select id="globalAccountSelector" class="form-select form-select-sm" style="min-width: 220px;" title="Filter dashboard & analytics by account">
+                            <option value="all">💳 All Accounts (Combined)</option>
+                        </select>
+                    </div>
+
+                    <!-- Quick Add Expense Button -->
+                    <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" onclick="openAddExpenseModal()">
+                        <i class="bi bi-plus-circle me-1"></i> Add Expense
+                    </button>
+
+                    <!-- Theme Toggle -->
+                    <button id="themeToggleBtn" class="btn btn-outline-secondary btn-sm rounded-circle p-2" type="button" title="Switch Theme" style="width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-moon-stars-fill"></i>
+                    </button>
+
+                    <!-- User Menu Dropdown -->
+                    <div class="dropdown">
+                        <button class="btn btn-light btn-sm rounded-pill dropdown-toggle border d-flex align-items-center gap-2 py-1 px-3" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 24px; height: 24px; font-size: 0.75rem;">
+                                <i class="bi bi-person-fill"></i>
+                            </div>
+                            <span id="navUserName" class="fw-medium small text-truncate" style="max-width: 120px;">User</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border">
+                            <li><h6 class="dropdown-header">Manage Session</h6></li>
+                            <li><a class="dropdown-item" href="#" data-nav-view="accounts"><i class="bi bi-wallet me-2"></i>My Bank Accounts</a></li>
+                            <li><a class="dropdown-item" href="#" id="resetDemoDataBtn"><i class="bi bi-arrow-repeat me-2 text-warning"></i>Reset Demo Data</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" id="logoutBtn"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                            <li><a class="dropdown-item text-danger" href="#" id="deleteUserAccountBtn"><i class="bi bi-person-x me-2"></i>Delete User Account</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ========================================== -->
+    <!-- AUTHENTICATION VIEW (SIGN IN / SIGN UP) -->
+    <!-- ========================================== -->
+    <div id="authArea" class="auth-wrapper container">
+        <!-- 1. LOGIN CARD -->
+        <div id="loginCard" class="auth-card mx-auto">
+            <div class="text-center mb-4">
+                <div class="brand-icon mx-auto mb-3" style="width: 50px; height: 50px; font-size: 1.6rem;">
+                    <i class="bi bi-wallet2"></i>
+                </div>
+                <h3 class="fw-bold mb-1">Welcome Back</h3>
+                <p class="text-secondary small">Sign in to track your multi-bank expenses and spending trends</p>
+            </div>
+
+            <form id="loginForm">
+                <div class="mb-3">
+                    <label for="loginEmail" class="form-label">Email Address</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-transparent text-secondary border-end-0"><i class="bi bi-envelope"></i></span>
+                        <input type="email" class="form-control border-start-0" id="loginEmail" placeholder="e.g. alex@example.com" value="demo@spendwise.com" required>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between">
+                        <label for="loginPassword" class="form-label">Password</label>
+                    </div>
+                    <div class="input-group">
+                        <span class="input-group-text bg-transparent text-secondary border-end-0"><i class="bi bi-shield-lock"></i></span>
+                        <input type="password" class="form-control border-start-0" id="loginPassword" placeholder="••••••••" value="password123" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold mb-3">
+                    <i class="bi bi-box-arrow-in-right me-1"></i> Sign In to Account
+                </button>
+
+                <div class="d-grid mb-3">
+                    <button type="button" id="demoLoginBtn" class="btn btn-outline-primary py-2 btn-sm fw-medium">
+                        <i class="bi bi-lightning-charge-fill me-1 text-warning"></i> One-Click Demo Login (Instant Access)
+                    </button>
+                </div>
+            </form>
+
+            <div class="text-center mt-3 pt-3 border-top">
+                <p class="text-secondary small mb-0">
+                    Don't have an account yet? 
+                    <a href="#" id="showRegisterBtn" class="text-primary fw-semibold text-decoration-none">Create an Account</a>
+                </p>
+            </div>
+        </div>
+
+        <!-- 2. REGISTER CARD -->
+        <div id="registerCard" class="auth-card mx-auto d-none">
+            <div class="text-center mb-4">
+                <div class="brand-icon mx-auto mb-3" style="width: 50px; height: 50px; font-size: 1.6rem;">
+                    <i class="bi bi-person-plus-fill"></i>
+                </div>
+                <h3 class="fw-bold mb-1">Create Account</h3>
+                <p class="text-secondary small">Start tracking your multi-bank expenses and smart analytics</p>
+            </div>
+
+            <form id="registerForm">
+                <div class="mb-3">
+                    <label for="regName" class="form-label">Full Name</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-transparent text-secondary border-end-0"><i class="bi bi-person"></i></span>
+                        <input type="text" class="form-control border-start-0" id="regName" placeholder="e.g. Alex Morgan" required>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="regEmail" class="form-label">Email Address</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-transparent text-secondary border-end-0"><i class="bi bi-envelope"></i></span>
+                        <input type="email" class="form-control border-start-0" id="regEmail" placeholder="alex@domain.com" required>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="regPassword" class="form-label">Create Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-transparent text-secondary border-end-0"><i class="bi bi-shield-lock"></i></span>
+                        <input type="password" class="form-control border-start-0" id="regPassword" placeholder="Minimum 6 characters" minlength="6" required>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="regCurrency" class="form-label">Default Currency Symbol</label>
+                    <select id="regCurrency" class="form-select">
+                        <option value="$" selected>$ USD (Dollar)</option>
+                        <option value="€">€ EUR (Euro)</option>
+                        <option value="£">£ GBP (Pound)</option>
+                        <option value="₹">₹ INR (Rupee)</option>
+                        <option value="¥">¥ JPY/CNY (Yen/Yuan)</option>
+                        <option value="C$">C$ CAD (Canadian Dollar)</option>
+                        <option value="A$">A$ AUD (Australian Dollar)</option>
+                        <option value="AED">AED (Emirati Dirham)</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold mb-3">
+                    <i class="bi bi-check2-circle me-1"></i> Register & Enter Dashboard
+                </button>
+            </form>
+
+            <div class="text-center mt-3 pt-3 border-top">
+                <p class="text-secondary small mb-0">
+                    Already registered? 
+                    <a href="#" id="showLoginBtn" class="text-primary fw-semibold text-decoration-none">Sign In instead</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MAIN APPLICATION CONTAINER -->
+    <!-- ========================================== -->
+    <main id="mainContentArea" class="container-fluid px-3 px-lg-4 py-4 d-none">
+
+        <!-- ====================================== -->
+        <!-- VIEW 1: DASHBOARD -->
+        <!-- ====================================== -->
+        <section id="view-dashboard" class="view-section">
+            <!-- Header Scope Banner -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+                <div>
+                    <h2 class="h3 fw-bold mb-1">Financial Dashboard</h2>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-secondary small">Viewing Active Scope:</span>
+                        <span id="dashActiveAccountLabel" class="badge bg-primary-subtle text-primary fw-semibold px-2 py-1">
+                            All Bank Accounts
+                        </span>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-outline-primary" onclick="openAddAccountModal()">
+                        <i class="bi bi-bank me-1"></i> Add Bank Account
+                    </button>
+                    <button class="btn btn-primary" onclick="openAddExpenseModal()">
+                        <i class="bi bi-plus-lg me-1"></i> Log Expense
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dashboard 4 Key Metrics -->
+            <div class="row g-3 mb-4">
+                <!-- Stat 1: Active Balance -->
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <div class="stat-card card-hover">
+                        <div class="stat-icon blue">
+                            <i class="bi bi-wallet2"></i>
+                        </div>
+                        <div>
+                            <span class="text-secondary small d-block mb-1">Scope Balance</span>
+                            <h3 id="dashTotalBalance" class="fw-bold mb-0 text-primary">$0.00</h3>
+                            <small class="text-muted">In selected account(s)</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stat 2: Active Expenses -->
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <div class="stat-card card-hover">
+                        <div class="stat-icon red">
+                            <i class="bi bi-arrow-up-right-circle"></i>
+                        </div>
+                        <div>
+                            <span class="text-secondary small d-block mb-1">Scope Expenses</span>
+                            <h3 id="dashTotalExpenses" class="fw-bold mb-0 text-danger">$0.00</h3>
+                            <small class="text-muted">Spent from selection</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stat 3: All Accounts Combined Balance -->
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <div class="stat-card card-hover">
+                        <div class="stat-icon green">
+                            <i class="bi bi-cash-coin"></i>
+                        </div>
+                        <div>
+                            <span class="text-secondary small d-block mb-1">Total Combined Balance</span>
+                            <h3 id="dashTotalBalanceAll" class="fw-bold mb-0 text-success">$0.00</h3>
+                            <small class="text-muted">Across all your banks</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stat 4: All Accounts Combined Expenses -->
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <div class="stat-card card-hover">
+                        <div class="stat-icon purple">
+                            <i class="bi bi-pie-chart"></i>
+                        </div>
+                        <div>
+                            <span class="text-secondary small d-block mb-1">Total Combined Expenses</span>
+                            <h3 id="dashTotalExpensesAll" class="fw-bold mb-0 text-dark">$0.00</h3>
+                            <small class="text-muted">All banks aggregated</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Spending Category Alert / Highlight -->
+            <div class="card p-3 mb-4 border-start border-4 border-warning shadow-sm">
+                <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-circle bg-warning bg-opacity-25 text-warning d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; font-size: 1.3rem;">
+                            <i class="bi bi-fire"></i>
+                        </div>
+                        <div>
+                            <span class="text-secondary small d-block">Current Month's Highest Expense Category</span>
+                            <h5 id="dashTopCategoryName" class="fw-bold mb-0 text-dark">Analyzing...</h5>
+                        </div>
+                    </div>
+                    <div>
+                        <span id="dashTopCategoryAmount" class="badge bg-danger-subtle text-danger px-3 py-2 fs-6 fw-semibold">
+                            $0.00 (0% of month)
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bank Accounts Cards List -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="h5 fw-bold mb-0">
+                    <i class="bi bi-credit-card-2-front me-2 text-primary"></i>Your Bank Accounts & Individual Balances
+                </h4>
+                <a href="#" class="text-decoration-none small fw-semibold" data-nav-view="accounts">Manage All Accounts &rarr;</a>
+            </div>
+            <div id="dashboardAccountCardsList" class="row g-3 mb-4">
+                <!-- Dynamically rendered bank cards -->
+            </div>
+
+            <!-- Charts Section: Spending Trend & Category Distribution -->
+            <div class="row g-4 mb-4">
+                <!-- Trend Chart -->
+                <div class="col-12 col-lg-7">
+                    <div class="card p-3 p-md-4 h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h5 class="fw-bold mb-0">Monthly Spending Overview</h5>
+                                <small class="text-secondary">Expenses trend across months</small>
+                            </div>
+                            <span class="badge bg-primary-subtle text-primary">Bar Chart</span>
+                        </div>
+                        <div style="height: 280px; position: relative;">
+                            <canvas id="dashTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Doughnut Chart -->
+                <div class="col-12 col-lg-5">
+                    <div class="card p-3 p-md-4 h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h5 class="fw-bold mb-0">Spending by Category</h5>
+                                <small class="text-secondary">Breakdown for active selection</small>
+                            </div>
+                            <span class="badge bg-info-subtle text-info">Category Mix</span>
+                        </div>
+                        <div style="height: 280px; position: relative;">
+                            <canvas id="dashCategoryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Expenses Table -->
+            <div class="card overflow-hidden">
+                <div class="card-header bg-transparent py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
+                    <div>
+                        <h5 class="fw-bold mb-0">Recent Expenses</h5>
+                        <small class="text-secondary">Latest logged transactions</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" data-nav-view="expenses">
+                        View All Expenses <i class="bi bi-arrow-right ms-1"></i>
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table custom-table mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Place / Merchant</th>
+                                <th>Category</th>
+                                <th>Deducted From</th>
+                                <th>Date & Time</th>
+                                <th class="text-end">Amount</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashRecentExpensesTableBody">
+                            <!-- Dynamically loaded rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====================================== -->
+        <!-- VIEW 2: BANK ACCOUNTS MANAGEMENT -->
+        <!-- ====================================== -->
+        <section id="view-accounts" class="view-section d-none">
+            <!-- Header -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+                <div>
+                    <h2 class="h3 fw-bold mb-1">Bank Accounts Management</h2>
+                    <p class="text-secondary mb-0">Configure your banking accounts, monitor liquidity, and track spending per account.</p>
+                </div>
+                <button class="btn btn-primary" onclick="openAddAccountModal()">
+                    <i class="bi bi-plus-circle me-1"></i> Add Bank Account
+                </button>
+            </div>
+
+            <!-- Summary Stat Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <i class="bi bi-bank"></i>
+                        </div>
+                        <div>
+                            <span class="text-secondary small d-block">Combined Liquid Balance</span>
+                            <h3 id="accTotalLiquidBalance" class="fw-bold mb-0 text-success">$0.00</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-icon red">
+                            <i class="bi bi-credit-card-2-front"></i>
+                        </div>
+                        <div>
+                            <span class="text-secondary small d-block">Combined Expenses Logged</span>
+                            <h3 id="accTotalSpentCombined" class="fw-bold mb-0 text-danger">$0.00</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <i class="bi bi-layers-half"></i>
+                        </div>
+                        <div>
+                            <span class="text-secondary small d-block">Configured Accounts</span>
+                            <h3 id="accActiveCount" class="fw-bold mb-0 text-primary">0</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Accounts Grid -->
+            <div id="accountsDetailedList" class="row">
+                <!-- Dynamically rendered detailed accounts -->
+            </div>
+        </section>
+
+        <!-- ====================================== -->
+        <!-- VIEW 3: EXPENSES LIST & FILTERING -->
+        <!-- ====================================== -->
+        <section id="view-expenses" class="view-section d-none">
+            <!-- Header -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+                <div>
+                    <h2 class="h3 fw-bold mb-1">Expense Log & Details</h2>
+                    <p class="text-secondary mb-0">Comprehensive record of every purchase, merchant, category, and linked bank account.</p>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <div class="dropdown">
+                        <button class="btn btn-outline-danger dropdown-toggle d-inline-flex align-items-center" type="button" id="expensesReportDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-file-earmark-pdf-fill me-1"></i> Download PDF Report
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="expensesReportDropdownBtn" style="min-width: 240px;">
+                            <li><h6 class="dropdown-header text-uppercase small fw-bold text-muted">Choose Period</h6></li>
+                            <li><a class="dropdown-item d-flex align-items-center py-2" href="#" onclick="openReportModalWithTimeframe('monthly')"><i class="bi bi-calendar-month text-primary me-2 fs-5"></i> Monthly Report (PDF)</a></li>
+                            <li><a class="dropdown-item d-flex align-items-center py-2" href="#" onclick="openReportModalWithTimeframe('quarterly')"><i class="bi bi-pie-chart text-success me-2 fs-5"></i> Quarterly Report (PDF)</a></li>
+                            <li><a class="dropdown-item d-flex align-items-center py-2" href="#" onclick="openReportModalWithTimeframe('halfyearly')"><i class="bi bi-calendar-range text-warning me-2 fs-5"></i> Half-Yearly Report (PDF)</a></li>
+                            <li><a class="dropdown-item d-flex align-items-center py-2" href="#" onclick="openReportModalWithTimeframe('yearly')"><i class="bi bi-calendar3 text-info me-2 fs-5"></i> Yearly Report (PDF)</a></li>
+                        </ul>
+                    </div>
+                    <button id="exportExpensesCsvBtn" class="btn btn-outline-secondary">
+                        <i class="bi bi-download me-1"></i> Export CSV
+                    </button>
+                    <button class="btn btn-primary" onclick="openAddExpenseModal()">
+                        <i class="bi bi-plus-lg me-1"></i> Log New Expense
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters Bar Card -->
+            <div class="card p-3 p-md-4 mb-4">
+                <div class="row g-3">
+                    <div class="col-12 col-md-4 col-lg-3">
+                        <label for="expenseSearchInput" class="form-label">Search Place / Purpose</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-transparent text-secondary"><i class="bi bi-search"></i></span>
+                            <input type="text" id="expenseSearchInput" class="form-control" placeholder="Search by merchant or notes...">
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-4 col-lg-3">
+                        <label for="expenseAccountFilter" class="form-label">Filter by Bank Account</label>
+                        <select id="expenseAccountFilter" class="form-select">
+                            <option value="all">All Accounts</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12 col-md-4 col-lg-2">
+                        <label for="expenseCategoryFilter" class="form-label">Category</label>
+                        <select id="expenseCategoryFilter" class="form-select">
+                            <option value="all">All Categories</option>
+                        </select>
+                    </div>
+
+                    <div class="col-6 col-lg-2">
+                        <label for="expenseDateFrom" class="form-label">From Date</label>
+                        <input type="date" id="expenseDateFrom" class="form-control">
+                    </div>
+
+                    <div class="col-6 col-lg-2">
+                        <label for="expenseDateTo" class="form-label">To Date</label>
+                        <input type="date" id="expenseDateTo" class="form-control">
+                    </div>
+                </div>
+
+                <!-- Stats Summary Row for Active Filter -->
+                <div class="d-flex flex-wrap justify-content-between align-items-center mt-3 pt-3 border-top gap-2">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="text-secondary small">Filtered Total Spend:</span>
+                        <span id="expensesFilteredTotal" class="fw-bold text-danger fs-5">$0.00</span>
+                        <span class="badge bg-secondary-subtle text-secondary"><span id="expensesFilteredCount">0</span> Transactions</span>
+                    </div>
+                    <button class="btn btn-sm btn-link text-decoration-none text-secondary" onclick="resetExpenseFilters()">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters
+                    </button>
+                </div>
+            </div>
+
+            <!-- Expenses Table Card -->
+            <div class="card overflow-hidden">
+                <div class="table-responsive">
+                    <table class="table custom-table mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Expense Place / Merchant</th>
+                                <th>Purpose / Details</th>
+                                <th>Category</th>
+                                <th>Deducted Account</th>
+                                <th class="text-end">Amount</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expensesTableBody">
+                            <!-- Dynamically loaded rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====================================== -->
+        <!-- VIEW 4: ANALYTICS & INSIGHTS -->
+        <!-- ====================================== -->
+        <section id="view-analytics" class="view-section d-none">
+            <!-- Header & Period Switcher -->
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-3 mb-4">
+                <div>
+                    <h2 class="h3 fw-bold mb-1">Financial Analytics & Expense Breakdown</h2>
+                    <p class="text-secondary mb-0">Analyze spending patterns monthly, quarterly, half-yearly, and yearly to find where you spend the most.</p>
+                </div>
+
+                <!-- Filters: Year & Account & PDF Reports -->
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <select id="analyticsYearSelect" class="form-select form-select-sm" style="width: 130px;">
+                        <!-- Dynamically filled with available years -->
+                    </select>
+
+                    <select id="analyticsAccountFilter" class="form-select form-select-sm" style="min-width: 180px;">
+                        <option value="all">All Accounts Combined</option>
+                    </select>
+
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-danger dropdown-toggle d-inline-flex align-items-center shadow-sm" type="button" id="downloadReportDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-file-earmark-pdf-fill me-1"></i> Download PDF Report
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="downloadReportDropdownBtn" style="min-width: 260px;">
+                            <li><h6 class="dropdown-header text-uppercase small fw-bold text-muted">Current Active View</h6></li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center py-2" href="#" id="downloadActiveViewPdfBtn">
+                                    <i class="bi bi-file-earmark-pdf-fill text-danger me-2 fs-5"></i>
+                                    <div>
+                                        <div class="fw-semibold">Download Current View (PDF)</div>
+                                        <small class="text-secondary" id="activeViewPdfDesc">Active period & filters</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header text-uppercase small fw-bold text-muted">Reports by Frequency</h6></li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center py-2" href="#" id="downloadMonthlyPdfBtn">
+                                    <i class="bi bi-calendar-month text-primary me-2 fs-5"></i>
+                                    <div>
+                                        <div class="fw-semibold">Monthly Report (PDF)</div>
+                                        <small class="text-secondary">Selected month breakdown</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center py-2" href="#" id="downloadQuarterlyPdfBtn">
+                                    <i class="bi bi-pie-chart text-success me-2 fs-5"></i>
+                                    <div>
+                                        <div class="fw-semibold">Quarterly Report (PDF)</div>
+                                        <small class="text-secondary">3-month quarter analysis</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center py-2" href="#" id="downloadHalfYearlyPdfBtn">
+                                    <i class="bi bi-calendar-range text-warning me-2 fs-5"></i>
+                                    <div>
+                                        <div class="fw-semibold">Half-Yearly Report (PDF)</div>
+                                        <small class="text-secondary">6-month period analysis</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center py-2" href="#" id="downloadYearlyPdfBtn">
+                                    <i class="bi bi-calendar3 text-info me-2 fs-5"></i>
+                                    <div>
+                                        <div class="fw-semibold">Yearly Report (PDF)</div>
+                                        <small class="text-secondary">Full 12-month annual summary</small>
+                                    </div>
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center py-2 text-primary" href="#" onclick="openReportModal()">
+                                    <i class="bi bi-sliders me-2 fs-5"></i>
+                                    <div>
+                                        <div class="fw-semibold">Custom Report Options...</div>
+                                        <small class="text-secondary">Customize timeframe, year, & account</small>
+                                    </div>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timeframe Pills Tabs (Monthly, Quarterly, Half-Yearly, Yearly) -->
+            <div class="card p-3 mb-4">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                    <ul class="nav nav-pills nav-pills-custom" id="analyticsTimeframeTabs">
+                        <li class="nav-item">
+                            <button class="nav-link active" data-timeframe="monthly">
+                                <i class="bi bi-calendar-month me-1"></i> Monthly
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-timeframe="quarterly">
+                                <i class="bi bi-pie-chart me-1"></i> Quarterly (Q1 - Q4)
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-timeframe="halfyearly">
+                                <i class="bi bi-calendar-range me-1"></i> Half-Yearly (H1 - H2)
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-timeframe="yearly">
+                                <i class="bi bi-calendar3 me-1"></i> Yearly (Annual)
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Dynamic Sub-controls depending on active timeframe -->
+                    <div class="d-flex align-items-center">
+                        <!-- Monthly selector -->
+                        <div id="subctrl-monthly" class="timeframe-subcontrols">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="small text-secondary fw-medium">Select Month:</span>
+                                <select id="analyticsMonthSelect" class="form-select form-select-sm" style="width: 160px;">
+                                    <option value="0">January</option>
+                                    <option value="1">February</option>
+                                    <option value="2">March</option>
+                                    <option value="3">April</option>
+                                    <option value="4">May</option>
+                                    <option value="5">June</option>
+                                    <option value="6">July</option>
+                                    <option value="7">August</option>
+                                    <option value="8">September</option>
+                                    <option value="9">October</option>
+                                    <option value="10" selected>November</option>
+                                    <option value="11">December</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Quarterly selector -->
+                        <div id="subctrl-quarterly" class="timeframe-subcontrols d-none">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="small text-secondary fw-medium">Select Quarter:</span>
+                                <select id="analyticsQuarterSelect" class="form-select form-select-sm" style="width: 180px;">
+                                    <option value="1" selected>Q1 (Jan - Mar)</option>
+                                    <option value="2">Q2 (Apr - Jun)</option>
+                                    <option value="3">Q3 (Jul - Sep)</option>
+                                    <option value="4">Q4 (Oct - Dec)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Half-Yearly selector -->
+                        <div id="subctrl-halfyearly" class="timeframe-subcontrols d-none">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="small text-secondary fw-medium">Select Half:</span>
+                                <select id="analyticsHalfSelect" class="form-select form-select-sm" style="width: 190px;">
+                                    <option value="1" selected>H1 (Jan - Jun)</option>
+                                    <option value="2">H2 (Jul - Dec)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Yearly indicator -->
+                        <div id="subctrl-yearly" class="timeframe-subcontrols d-none">
+                            <span class="badge bg-primary-subtle text-primary py-2 px-3 fw-medium">
+                                <i class="bi bi-calendar3 me-1"></i> Full 12-Month Annual Aggregation
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Spotlight Card: Top Spending Category In Selected Timeframe -->
+            <div id="topCategorySpotlight" class="top-category-spotlight mb-4">
+                <!-- Dynamically rendered banner for the #1 highest spending category -->
+            </div>
+
+            <!-- 3 Stat Metrics for the Period -->
+            <div class="row g-3 mb-4">
+                <div class="col-12 col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-icon red">
+                            <i class="bi bi-currency-dollar"></i>
+                        </div>
+                        <div>
+                            <span id="analyticsStat1Title" class="text-secondary small d-block">Period Total</span>
+                            <h3 id="analyticsStat1Val" class="fw-bold mb-0 text-danger">$0.00</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-icon purple">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <div>
+                            <span id="analyticsStat2Title" class="text-secondary small d-block">Comparison Metric</span>
+                            <h4 id="analyticsStat2Val" class="fw-bold mb-0 text-dark">—</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <i class="bi bi-receipt"></i>
+                        </div>
+                        <div>
+                            <span id="analyticsStat3Title" class="text-secondary small d-block">Transaction Count</span>
+                            <h4 id="analyticsStat3Val" class="fw-bold mb-0 text-primary">0 entries</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section: Trend & Category Distribution -->
+            <div class="row g-4 mb-4">
+                <!-- Trend Chart -->
+                <div class="col-12 col-lg-7">
+                    <div class="card p-3 p-md-4 h-100">
+                        <h5 class="fw-bold mb-1">Timeframe Spending Trend</h5>
+                        <p class="text-secondary small mb-3">Progression and comparisons for the selected period</p>
+                        <div style="height: 300px; position: relative;">
+                            <canvas id="analyticsTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Doughnut Chart -->
+                <div class="col-12 col-lg-5">
+                    <div class="card p-3 p-md-4 h-100">
+                        <h5 class="fw-bold mb-1">Spending by Category</h5>
+                        <p class="text-secondary small mb-3">Proportional distribution across all categories</p>
+                        <div style="height: 300px; position: relative;">
+                            <canvas id="analyticsCategoryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account-Wise Comparison Chart -->
+            <div class="card p-3 p-md-4 mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <h5 class="fw-bold mb-0">Cross-Account Financial Comparison</h5>
+                        <small class="text-secondary">Comparing Current Available Balance vs Total Expenses per bank account</small>
+                    </div>
+                    <span class="badge bg-secondary-subtle text-secondary">Multi-Bank Breakdown</span>
+                </div>
+                <div style="height: 280px; position: relative;">
+                    <canvas id="analyticsAccountChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Top Spending Categories Ranking Table -->
+            <div class="card overflow-hidden">
+                <div class="card-header bg-transparent py-3 px-4 border-bottom">
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-trophy me-2 text-warning"></i>Category Spending Leaderboard (Ranked Highest to Lowest)
+                    </h5>
+                    <small class="text-secondary">Identifies exactly where the highest portion of your funds is spent.</small>
+                </div>
+                <div class="table-responsive">
+                    <table class="table custom-table mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th class="text-center">Rank</th>
+                                <th>Category</th>
+                                <th>Percentage Share</th>
+                                <th class="text-center">Transaction Count</th>
+                                <th class="text-end">Total Amount Spent</th>
+                            </tr>
+                        </thead>
+                        <tbody id="categoryRankingTableBody">
+                            <!-- Dynamically loaded ranked categories -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ========================================== -->
+    <!-- MODALS -->
+    <!-- ========================================== -->
+
+    <!-- 1. BANK ACCOUNT MODAL (Add / Edit) -->
+    <div class="modal fade" id="accountModal" tabindex="-1" aria-labelledby="accountModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="accountForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold" id="accountModalTitle">Add New Bank Account</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="accountIdInput">
+
+                        <div class="mb-3">
+                            <label for="accountBankNameInput" class="form-label">Bank or Institution Name</label>
+                            <input type="text" id="accountBankNameInput" class="form-control" placeholder="e.g. Chase, Bank of America, HDFC" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="accountNameInput" class="form-label">Account Label / Nickname</label>
+                            <input type="text" id="accountNameInput" class="form-control" placeholder="e.g. Main Salary, Everyday Checking, Savings" required>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label for="accountTypeInput" class="form-label">Account Type</label>
+                                <select id="accountTypeInput" class="form-select" required>
+                                    <!-- Populated by JS -->
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label for="accountNumberInput" class="form-label">Last 4 Digits / Mask</label>
+                                <input type="text" id="accountNumberInput" class="form-control" placeholder="e.g. **** 1234" required>
+                            </div>
+                        </div>
+
+                        <div id="accountBalanceContainer" class="mb-3">
+                            <label for="accountBalanceInput" class="form-label">Opening / Current Balance</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-transparent text-secondary"><i class="bi bi-cash"></i></span>
+                                <input type="number" step="0.01" min="0" id="accountBalanceInput" class="form-control" placeholder="0.00" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label for="accountThemeInput" class="form-label">Card Color Theme</label>
+                            <select id="accountThemeInput" class="form-select">
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-danger me-auto d-none" id="deleteAccountFromModalBtn">
+                            <i class="bi bi-trash3 me-1"></i> Remove Bank Account
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-4">Save Account</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. TOP UP / ADD FUNDS MODAL -->
+    <div class="modal fade" id="topUpModal" tabindex="-1" aria-labelledby="topUpModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <form id="topUpForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold" id="topUpModalTitle">Add Funds / Top-Up</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="topUpAccountId">
+
+                        <div class="mb-3">
+                            <small class="text-secondary d-block">Account</small>
+                            <span id="topUpAccountName" class="fw-bold">Bank Name</span>
+                        </div>
+
+                        <div class="mb-3">
+                            <small class="text-secondary d-block">Current Balance</small>
+                            <span id="topUpCurrentBalance" class="fs-5 fw-bold text-success">$0.00</span>
+                        </div>
+
+                        <div class="mb-2">
+                            <label for="topUpAmountInput" class="form-label">Deposit Amount</label>
+                            <input type="number" step="0.01" min="0.01" id="topUpAmountInput" class="form-control" placeholder="0.00" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success px-3">Deposit Funds</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. EXPENSE MODAL (Add / Edit) -->
+    <div class="modal fade" id="expenseModal" tabindex="-1" aria-labelledby="expenseModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <form id="expenseForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title fw-bold" id="expenseModalTitle">Add New Expense</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="expenseIdInput">
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-12 col-md-6">
+                                <label for="expenseAmountInput" class="form-label">Expense Amount</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-transparent text-secondary"><i class="bi bi-tag-fill"></i></span>
+                                    <input type="number" step="0.01" min="0.01" id="expenseAmountInput" class="form-control form-control-lg fw-bold text-danger" placeholder="0.00" required>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="expenseAccountInput" class="form-label">Deduct From Bank Account</label>
+                                <select id="expenseAccountInput" class="form-select form-select-lg" required>
+                                    <!-- Populated by JS -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-12 col-md-6">
+                                <label for="expensePlaceInput" class="form-label">Expense Place / Merchant / Store</label>
+                                <input type="text" id="expensePlaceInput" class="form-control" placeholder="e.g. Whole Foods, Shell Gas, Starbucks" required>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label for="expenseCategoryInput" class="form-label">Category</label>
+                                <select id="expenseCategoryInput" class="form-select" required>
+                                    <!-- Populated by JS -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="expensePurposeInput" class="form-label">Purpose / Description</label>
+                            <input type="text" id="expensePurposeInput" class="form-control" placeholder="e.g. Weekly grocery supplies, dinner with family" required>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-12 col-md-4">
+                                <label for="expenseDateInput" class="form-label">Date</label>
+                                <input type="date" id="expenseDateInput" class="form-control" required>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label for="expenseTimeInput" class="form-label">Time</label>
+                                <input type="time" id="expenseTimeInput" class="form-control" value="12:00">
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label for="expensePaymentModeInput" class="form-label">Payment Method</label>
+                                <select id="expensePaymentModeInput" class="form-select">
+                                    <option value="Debit Card">Debit Card</option>
+                                    <option value="Credit Card">Credit Card</option>
+                                    <option value="UPI / Online">UPI / Online</option>
+                                    <option value="NetBanking">NetBanking / Wire</option>
+                                    <option value="Auto-Debit">Auto-Debit / Mandate</option>
+                                    <option value="Cash">Cash</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-1">
+                            <label for="expenseNotesInput" class="form-label">Notes / Reference (Optional)</label>
+                            <textarea id="expenseNotesInput" class="form-control" rows="2" placeholder="Additional notes, invoice number, or memo..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-4">Save Expense</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 4. REPORT DOWNLOAD MODAL (Monthly, Quarterly, Half-Yearly, Yearly) -->
+    <!-- ========================================== -->
+    <div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow border-0">
+                <div class="modal-header bg-danger text-white py-3">
+                    <h5 class="modal-title fw-bold" id="reportModalTitle">
+                        <i class="bi bi-file-earmark-pdf-fill me-2"></i>Download Financial PDF Report
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="text-secondary small mb-3">Download an official, publication-quality itemized PDF financial report with KPIs, ranked categories, bank breakdowns, and transaction receipts.</p>
+
+                    <!-- Timeframe Choice: Monthly, Quarterly, Half-Yearly, Yearly -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small text-uppercase text-secondary">1. Report Frequency / Period</label>
+                        <div class="row g-2" id="modalTimeframeSelector">
+                            <div class="col-6">
+                                <input type="radio" class="btn-check" name="modalReportTimeframe" id="modalTfMonthly" value="monthly" checked>
+                                <label class="btn btn-outline-primary w-100 py-2 d-flex flex-column align-items-center" for="modalTfMonthly">
+                                    <i class="bi bi-calendar-month fs-5 mb-1"></i>
+                                    <span class="fw-semibold">Monthly</span>
+                                </label>
+                            </div>
+                            <div class="col-6">
+                                <input type="radio" class="btn-check" name="modalReportTimeframe" id="modalTfQuarterly" value="quarterly">
+                                <label class="btn btn-outline-primary w-100 py-2 d-flex flex-column align-items-center" for="modalTfQuarterly">
+                                    <i class="bi bi-pie-chart fs-5 mb-1"></i>
+                                    <span class="fw-semibold">Quarterly</span>
+                                </label>
+                            </div>
+                            <div class="col-6">
+                                <input type="radio" class="btn-check" name="modalReportTimeframe" id="modalTfHalfYearly" value="halfyearly">
+                                <label class="btn btn-outline-primary w-100 py-2 d-flex flex-column align-items-center" for="modalTfHalfYearly">
+                                    <i class="bi bi-calendar-range fs-5 mb-1"></i>
+                                    <span class="fw-semibold">Half-Yearly</span>
+                                </label>
+                            </div>
+                            <div class="col-6">
+                                <input type="radio" class="btn-check" name="modalReportTimeframe" id="modalTfYearly" value="yearly">
+                                <label class="btn btn-outline-primary w-100 py-2 d-flex flex-column align-items-center" for="modalTfYearly">
+                                    <i class="bi bi-calendar3 fs-5 mb-1"></i>
+                                    <span class="fw-semibold">Yearly (Annual)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Year Selection -->
+                    <div class="mb-3">
+                        <label for="modalReportYear" class="form-label fw-semibold small text-uppercase text-secondary">2. Select Year</label>
+                        <select id="modalReportYear" class="form-select">
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <!-- Sub-period: Month / Quarter / Half (shown/hidden dynamically) -->
+                    <div class="mb-3" id="modalReportMonthContainer">
+                        <label for="modalReportMonth" class="form-label fw-semibold small text-uppercase text-secondary">3. Select Month</label>
+                        <select id="modalReportMonth" class="form-select">
+                            <option value="0">January</option>
+                            <option value="1">February</option>
+                            <option value="2">March</option>
+                            <option value="3">April</option>
+                            <option value="4">May</option>
+                            <option value="5">June</option>
+                            <option value="6">July</option>
+                            <option value="7">August</option>
+                            <option value="8">September</option>
+                            <option value="9">October</option>
+                            <option value="10">November</option>
+                            <option value="11">December</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3 d-none" id="modalReportQuarterContainer">
+                        <label for="modalReportQuarter" class="form-label fw-semibold small text-uppercase text-secondary">3. Select Quarter</label>
+                        <select id="modalReportQuarter" class="form-select">
+                            <option value="1">Q1 (January - March)</option>
+                            <option value="2">Q2 (April - June)</option>
+                            <option value="3">Q3 (July - September)</option>
+                            <option value="4">Q4 (October - December)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3 d-none" id="modalReportHalfContainer">
+                        <label for="modalReportHalf" class="form-label fw-semibold small text-uppercase text-secondary">3. Select Half-Year Period</label>
+                        <select id="modalReportHalf" class="form-select">
+                            <option value="1">H1 (First Half: Jan - Jun)</option>
+                            <option value="2">H2 (Second Half: Jul - Dec)</option>
+                        </select>
+                    </div>
+
+                    <!-- Bank Account Scope -->
+                    <div class="mb-3">
+                        <label for="modalReportAccount" class="form-label fw-semibold small text-uppercase text-secondary">4. Account Scope</label>
+                        <select id="modalReportAccount" class="form-select">
+                            <option value="all">All Accounts Combined (Consolidated)</option>
+                            <!-- Populated with accounts -->
+                        </select>
+                    </div>
+
+                    <!-- Summary Info Box -->
+                    <div class="p-3 bg-light rounded-3 border">
+                        <div class="small fw-bold text-dark mb-1"><i class="bi bi-file-check-fill text-danger me-1"></i> PDF Summary Features:</div>
+                        <div class="small text-muted">Includes Executive KPIs, Ranked Categories, Multi-Bank Balances, and Itemized Transaction Details.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger px-4 d-inline-flex align-items-center shadow-sm" id="modalDownloadPdfSubmitBtn">
+                        <i class="bi bi-download me-2"></i>Download PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SPENDBOT CHATBOT FLOATING WIDGET -->
+    <!-- ========================================== -->
+    <div id="spendBotContainer" class="d-none">
+        <!-- Floating Launcher Button -->
+        <button id="spendBotToggleBtn" class="spendbot-launcher btn shadow-lg" type="button" title="Chat with SpendBot AI">
+            <span class="spendbot-badge-pill">
+                <i class="bi bi-stars text-warning me-1"></i>SpendBot
+            </span>
+            <div class="spendbot-icon-wrap">
+                <i class="bi bi-robot" id="spendBotLauncherIcon"></i>
+            </div>
+            <span class="position-absolute top-0 start-100 translate-middle p-1 bg-success border border-light rounded-circle">
+                <span class="visually-hidden">Online</span>
+            </span>
+        </button>
+
+        <!-- Chat Window -->
+        <div id="spendBotWindow" class="spendbot-window card shadow-lg border-0 d-none">
+            <!-- Header -->
+            <div class="spendbot-header d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="spendbot-avatar">
+                        <i class="bi bi-robot text-white"></i>
+                        <span class="spendbot-status-dot"></span>
+                    </div>
+                    <div>
+                        <div class="fw-bold fs-6 mb-0 text-white d-flex align-items-center gap-1">
+                            SpendBot <span class="badge bg-white text-primary rounded-pill" style="font-size: 0.65rem;">AI</span>
+                        </div>
+                        <small class="text-white-50" style="font-size: 0.75rem;">Your Financial Assistant</small>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                    <button id="spendBotClearBtn" class="btn btn-sm btn-link text-white-50 p-1 text-decoration-none" title="Clear Conversation">
+                        <i class="bi bi-arrow-clockwise fs-6"></i>
+                    </button>
+                    <button id="spendBotCloseBtn" class="btn btn-sm btn-link text-white p-1 text-decoration-none" title="Minimize Chat">
+                        <i class="bi bi-dash-lg fs-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Suggestions Bar (Scrollable chips) -->
+            <div class="spendbot-chips-bar px-3 py-2 border-bottom">
+                <div class="d-flex gap-1 overflow-x-auto pb-1" id="spendBotQuickChips">
+                    <button class="spendbot-chip btn btn-sm rounded-pill" data-prompt="Total expense">💰 Total Expense</button>
+                    <button class="spendbot-chip btn btn-sm rounded-pill" data-prompt="Total monthly expense">📅 Total Monthly Expense</button>
+                    <button class="spendbot-chip btn btn-sm rounded-pill" data-prompt="Qtr expense">📊 Qtr Expense</button>
+                    <button class="spendbot-chip btn btn-sm rounded-pill" data-prompt="Yearly expense">🗓️ Yearly Expense</button>
+                    <button class="spendbot-chip btn btn-sm rounded-pill" data-prompt="Jan month expense">❄️ Jan Month Expense</button>
+                    <button class="spendbot-chip btn btn-sm rounded-pill" data-prompt="Category wise expense">🏷️ Category Wise Expense</button>
+                    <button class="spendbot-chip btn btn-sm rounded-pill" data-prompt="Max month expense">📈 Max Month Expense</button>
+                    <button class="spendbot-chip btn btn-sm rounded-pill" data-prompt="Max category expense">🏆 Max Category Expense</button>
+                </div>
+            </div>
+
+            <!-- Messages Area -->
+            <div id="spendBotMessages" class="spendbot-messages p-3 flex-grow-1 overflow-y-auto">
+                <!-- Welcome Bot Message -->
+                <div class="spendbot-msg bot-msg mb-2">
+                    <div class="msg-bubble">
+                        <div class="fw-semibold mb-1"><i class="bi bi-robot text-primary me-1"></i> SpendBot:</div>
+                        Hello! I'm your SpendWise assistant. I have direct, private access to <strong>your expense data</strong> to give you instant answers.
+                        <div class="small mt-2 text-muted">Click any prompt above or type your question below!</div>
+                    </div>
+                    <div class="msg-time small text-muted mt-1">Just now</div>
+                </div>
+            </div>
+
+            <!-- Typing indicator -->
+            <div id="spendBotTyping" class="spendbot-typing px-3 py-1 d-none">
+                <span class="spinner-grow spinner-grow-sm text-primary me-1" role="status"></span>
+                <small class="text-muted">SpendBot is analyzing your data...</small>
+            </div>
+
+            <!-- Input Form -->
+            <form id="spendBotForm" class="spendbot-footer p-2 border-top">
+                <div class="input-group">
+                    <input type="text" id="spendBotInput" class="form-control form-control-sm border-0 bg-transparent shadow-none" placeholder="Ask about your expenses (e.g. max category)..." autocomplete="off" required>
+                    <button class="btn btn-primary btn-sm px-3 rounded-pill" type="submit" id="spendBotSendBtn">
+                        <i class="bi bi-send-fill"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TOAST NOTIFICATIONS CONTAINER -->
+    <!-- ========================================== -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
+        <div id="appToast" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div id="appToastBody" class="toast-body">
+                    Notification message.
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- JAVASCRIPT LIBRARIES & MODULES -->
+    <!-- ========================================== -->
+    <!-- Bootstrap 5 Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Chart.js 4.4 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Application Scripts -->
+    <script src="{% static 'js/storage.js' %}?v=1.1"></script>
+    <script src="{% static 'js/analytics.js' %}?v=1.1"></script>
+    <script src="{% static 'js/app.js' %}?v=1.1"></script>
+</body>
+</html>
